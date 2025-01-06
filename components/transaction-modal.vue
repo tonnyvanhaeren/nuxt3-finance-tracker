@@ -2,42 +2,54 @@
   <UModal v-model="isOpen">
     <UCard>
       <template #header> Add Transaction </template>
-      <UFormGroup
-        :required="true"
-        label="Transaction Type"
-        name="type"
-        class="mb-4"
-      >
-        <USelect placeholder="Select the Transaction type" :options="types" />
-      </UFormGroup>
-      <UFormGroup label="Amount" :required="true" name="amount" class="mb-4">
-        <UInput type="number" placeholder="amount" />
-      </UFormGroup>
-      <UFormGroup
-        label="Transaction date"
-        :required="true"
-        name="created_at"
-        class="mb-4"
-      >
-        <UInput type="date" picon="i-heroicons-calendar-days-20-solid" />
-      </UFormGroup>
-      <UFormGroup
-        label="Description"
-        hint="Optional"
-        name="description"
-        class="mb-4"
-      >
-        <UInput placeholder="Description" />
-      </UFormGroup>
-      <UFormGroup
-        :required="true"
-        label="Category"
-        name="category"
-        class="mb-4"
-      >
-        <USelect placeholder="Select the Category" :options="categories" />
-      </UFormGroup>
-      <UButton type="submit" color="black" variant="solid" label="Save" />
+      <UForm :state="state" :schema="schema" ref="form" @submit.prevent="save">
+        <UFormGroup
+          :required="true"
+          label="Transaction Type"
+          name="type"
+          class="mb-4"
+        >
+          <USelect
+            placeholder="Select the Transaction type"
+            :options="types"
+            v-model="state.type"
+          />
+        </UFormGroup>
+        <UFormGroup label="Amount" :required="true" name="amount" class="mb-4">
+          <UInput type="number" placeholder="amount" />
+        </UFormGroup>
+        <UFormGroup
+          label="Transaction date"
+          :required="true"
+          name="created_at"
+          class="mb-4"
+        >
+          <UInput type="date" picon="i-heroicons-calendar-days-20-solid" />
+        </UFormGroup>
+        <UFormGroup
+          label="Description"
+          hint="Optional"
+          name="description"
+          class="mb-4"
+          v-model="state.created_at"
+        >
+          <UInput placeholder="Description" v-model="state.description" />
+        </UFormGroup>
+        <UFormGroup
+          :required="true"
+          label="Category"
+          name="category"
+          class="mb-4"
+          v-if="state.type === 'Expense'"
+        >
+          <USelect
+            placeholder="Select the Category"
+            :options="categories"
+            model="state.category"
+          />
+        </UFormGroup>
+        <UButton type="submit" color="black" variant="solid" label="Save" />
+      </UForm>
     </UCard>
   </UModal>
 </template>
@@ -45,14 +57,52 @@
 <script setup>
 // import { UFormGroup } from "#build/components";
 import { categories, types } from "~/constants";
+import { z } from "zod";
+
 const props = defineProps({
   modelValue: Boolean,
 });
+
 const emit = defineEmits(["update:modelValue"]);
+
+const defaultSchema = z.object({
+  created_at: z.string(),
+  description: z.string().optional(),
+  amount: z.number().positive("Amount needs to be more than 0"),
+});
+
+const incomeSchema = z.object({
+  type: z.literal("Income"),
+});
+const expenseSchema = z.object({
+  type: z.literal("Expense"),
+  category: z.enum(categories),
+});
+const investmentSchema = z.object({
+  type: z.literal("Investment"),
+});
+const savingSchema = z.object({
+  type: z.literal("Saving"),
+});
+
+const schema = z.intersection(
+  z.discriminatedUnion("type", [
+    incomeSchema,
+    expenseSchema,
+    investmentSchema,
+    savingSchema,
+  ]),
+  defaultSchema
+);
+
 const isOpen = computed({
   get: () => props.modelValue,
   set: (value) => emit("update:modelValue", value),
 });
+
+const save = async () => {
+  form.value.validate();
+};
 
 const state = ref({
   type: undefined,
@@ -61,4 +111,6 @@ const state = ref({
   description: undefined,
   category: undefined,
 });
+
+const form = ref();
 </script>
