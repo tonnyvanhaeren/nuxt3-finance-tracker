@@ -16,7 +16,7 @@
           />
         </UFormGroup>
         <UFormGroup label="Amount" :required="true" name="amount" class="mb-4">
-          <UInput type="number" placeholder="amount" />
+          <UInput type="number" placeholder="amount" v-model="state.amount" />
         </UFormGroup>
         <UFormGroup
           label="Transaction date"
@@ -24,7 +24,11 @@
           name="created_at"
           class="mb-4"
         >
-          <UInput type="date" picon="i-heroicons-calendar-days-20-solid" />
+          <UInput
+            type="date"
+            picon="i-heroicons-calendar-days-20-solid"
+            v-model="state.created_at"
+          />
         </UFormGroup>
         <UFormGroup
           label="Description"
@@ -45,10 +49,16 @@
           <USelect
             placeholder="Select the Category"
             :options="categories"
-            model="state.category"
+            v-model="state.category"
           />
         </UFormGroup>
-        <UButton type="submit" color="black" variant="solid" label="Save" />
+        <UButton
+          type="submit"
+          color="black"
+          variant="solid"
+          label="Save"
+          :loading="isLoading"
+        />
       </UForm>
     </UCard>
   </UModal>
@@ -63,7 +73,7 @@ const props = defineProps({
   modelValue: Boolean,
 });
 
-const emit = defineEmits(["update:modelValue"]);
+const emit = defineEmits(["update:modelValue", "saved"]);
 
 const defaultSchema = z.object({
   created_at: z.string(),
@@ -95,22 +105,67 @@ const schema = z.intersection(
   defaultSchema
 );
 
-const isOpen = computed({
-  get: () => props.modelValue,
-  set: (value) => emit("update:modelValue", value),
-});
-
-const save = async () => {
-  form.value.validate();
-};
-
-const state = ref({
+const initialState = {
   type: undefined,
   amount: 0,
   created_at: undefined,
   description: undefined,
   category: undefined,
+};
+
+const state = ref({
+  ...initialState,
 });
 
+const resetForm = () => {
+  Object.assign(state.value, initialState); // reinit the state values
+  form.value.clear(); // clear the errors
+};
+
 const form = ref();
+const isLoading = ref(false);
+const supabase = useSupabaseClient();
+const toast = useToast();
+
+const save = async () => {
+  if (form.value.errors.length) return;
+  isLoading.value = true;
+
+  try {
+    const { error } = await supabase
+      .from("transactions")
+      .upsert({ ...state.value });
+
+    if (!error) {
+      toast.add({
+        title: "Transaction saved",
+        icon: "i-heroicons-check-circle",
+        color: "green",
+      });
+      isOpen.value = false; // close modal
+      emit("saved"); //tell the parant that the record is saved
+      return;
+    }
+    throw error;
+  } catch (e) {
+    toast.add({
+      title: "Transaction not saved",
+      description: e.message,
+      icon: "i-heroicons-exclamation-circle",
+      color: "red",
+    });
+  } finally {
+    isLoading.value = false;
+  }
+  // store in supabase
+  //form.value.validate();
+};
+
+const isOpen = computed({
+  get: () => props.modelValue,
+  set: (value) => {
+    if (!value) resetForm();
+    emit("update:modelValue", value);
+  },
+});
 </script>
