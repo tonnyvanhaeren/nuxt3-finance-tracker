@@ -53,6 +53,8 @@ const isLoading = ref(false);
 const { toastSuccess, toastError } = useAppToast();
 const supabase = useSupabaseClient();
 
+const isOpen = ref(false);
+
 const deleteTransaction = async () => {
   isLoading.value = true;
   try {
