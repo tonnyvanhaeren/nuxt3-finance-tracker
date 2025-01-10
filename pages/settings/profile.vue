@@ -1,6 +1,6 @@
 <template>
   <div>
-    <UForm :state="state" :schema="schema">
+    <UForm :state="state" :schema="schema" @submit.prevent="saveProfile">
       <UFormGroup class="mb-4" label="Full Name" name="name">
         <UInput v-model="state.name" />
       </UFormGroup>
@@ -17,7 +17,8 @@
         color="black"
         variant="solid"
         label="Save"
-        :pending="pending"
+        :loading="pending"
+        :disabled="pending"
       />
     </UForm>
   </div>
@@ -32,7 +33,7 @@ const { toastError, toastSuccess } = useAppToast();
 const pending = ref(false);
 
 const state = ref({
-  name: "",
+  name: user.value.user_metadata?.full_name,
   email: user.value.email,
 });
 
@@ -40,4 +41,36 @@ const schema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email(),
 });
+
+const saveProfile = async () => {
+  pending.value = true;
+
+  try {
+    const data = {
+      data: {
+        full_name: state.value.name,
+      },
+    };
+    // only if the user email is changed in the input
+    if (state.value.email !== user.value.email) {
+      data.email = state.value.email;
+    }
+
+    const { error } = await supabase.auth.updateUser(data);
+
+    if (error) throw error;
+
+    toastSuccess({
+      title: "Profile updated",
+      description: "Your profile has been updated",
+    });
+  } catch (error) {
+    toastError({
+      title: "Error updating Profile",
+      description: error.message,
+    });
+  } finally {
+    pending.value = false;
+  }
+};
 </script>
